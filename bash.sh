@@ -1,0 +1,114 @@
+#!/bin/bash
+
+if [[ $EUID -ne 0 ]];
+  then 
+      echo "Please run as root"
+  exit 1
+fi
+
+  
+echo "Enter Your Target Domain Name e.g. amazon.com"
+
+
+read target 
+echo "=================================================================="
+echo "my target url is https://$target/"
+
+echo "Target Domain input.."
+echo "======================================================================="
+
+#ping command is used to test and verify the reachability of a host on IP network.
+echo "------------------------<Running Ping Command>---------------------"
+ping -c 10 $target > ping.txt
+cat ping.txt
+
+echo "====================================================================="
+# Whois command is used identify who owns a domain and how to get in contact with them.
+echo "----------------<Running WHOIS for collecting Information>-------------"
+whois $target > whois.txt
+cat whois.txt | grep -n [0-9]
+
+echo "========================================================================"
+# whatweb is written in Ruby language and is used to identify and recognize all the web technologies available on the target website 
+echo "------------------<Running Whatweb>------------------------------------"
+whatweb $target -v > whatweb.txt
+cat whatweb.txt
+
+echo "========================================================================="
+# Wafwoof(Web application firewall detection tool) simply queries a bweb server with a set of HTTP requests and methods
+echo "--------------< Running Wafwoof>----------------------------"
+wafw00f $target > wafw00f.txt
+cat wafw00f.txt
+
+echo "======================================================================"
+# namp is used for network exploration , host discovery , and security auditing 
+echo "--------------<Running NMAP>-----------------------"
+nmap -Pn -p0-1000 $target > nmap.txt
+cat nmap.txt
+
+echo "================================================================="
+
+echo "<-------------<What Type of Informartion You Want To Gather>-------------"
+echo " -p for passive info -subd for subdomain info :p/subd"
+
+read scantype
+
+if [ $scantype == "p" ] || [ $scantype == "subd" ]
+ then 
+    if [ $scantype == "p" ] 
+     then
+     echo "-----------<Here We Run Passive Info. Gathering Tools>-----------------"
+     echo "============================================="
+     # Dimtry tool can find possible subdomains , email addresses , uptime information , perform tcp port scan , whois lookups etc. , it can gather as much as info. as possible about a host
+     echo "------------------<Running Dmitry Tool>-----------------<"
+     dmitry $target 
+     #cat dmitry.txt
+
+
+    echo "======================================================="
+    # nslookup is used to query DNS and retrieve info. about a specific domain or Ip address.
+     echo "---------------<Running nslookup>----------------------"
+     nslookup $target > nslookup.txt
+     cat nslookup.txt
+
+    else
+
+        echo " Here We Are Running SubDomains Info. Gathering Tools...."
+
+        echo "==================================================="
+        echo "------------------<Running GObuster ,Assetfinder ,Subfinder>-------------------"
+        # gobuster enumerates hidden directories and files in the target domain by performing a brute force attack
+        gobuster dns -d $target -w /usr/share/wordlists/dirb/common.txt -qz > gobuster.txt
+
+
+        #assetfinder is used to find domains and subdomains potentially related to a given domain
+
+        assetfinder --subs-only $target >assetfinder.txt
+
+        # subfinder is used to discover valid subdomains for websites by using passive online sources.
+
+        subfinder -d $target > subfinder.txt
+
+        # here , we concatenate all our outputs of  .txt files and stores them in one specified directory(results)
+        cat gobuster.txt >> results
+        cat assetfinder.txt >> results
+        cat subfinder.txt >> results
+        #  sort the outputs
+        cat results | sort -u > unique_results
+	cat unique_results
+
+        echo "==================================================="
+        #httpprobe is a tool which is used for quickly probing for active http and http servers
+        echo "--------------<Starting Httpprobe>------------------"
+
+        cat unique_results | httpprobe | anew probe.txt
+	# Run aquatone for screenshots
+	echo "----------------<Running aquatone for screenshots...>-------------------"
+	aquatone-discover -d "$domain" -t 10 -s screenshoots
+	echo "screenshots by aquatone is complete"
+
+    fi
+
+ else
+   echo "enter p or subd.."
+ fi 
